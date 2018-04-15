@@ -1,7 +1,11 @@
+/**
+ * Get an item from dynamodb
+ *
+ */
 
 const dynamodbHelper = require('./dynamodbHelper');
 
-dynamodbHelper.getItem({"MachineID": "4"} , "BPMachinesTable")
+dynamodbHelper.getItem({"HashID": "4666fsffr"} , "SomeTable")
     .then(res => {
         console.log('Got it');
         console.log(res);
