@@ -72,6 +72,8 @@ exports.putItem = (item, tableName, overwite = false) => {
 /**
  * Update Item
  *
+ * TODO: Look at te condition expression here, does it work?
+ *
  * Updates item in dynamodb table
  * @param itemKey
  * @param tableName
@@ -168,7 +170,7 @@ exports.deleteItem = (itemKey, tableName, deleteCondition, deleteParameters) => 
         docClient.delete(requestParams, function(err, data) {
             if (err) {
                 // console.error("Unable to delete item. Error JSON:", JSON.stringify(err, null, 2));
-                reject({msg: "delete failed on dynamoDB", "code": "DBError", DBError: err, ...errorObj});
+                reject({msg: "Delete failed on dynamoDB", "code": "DBError", DBError: err, ...errorObj});
 
             } else {
                 // console.log("DeleteItem succeeded:", JSON.stringify(data, null, 2));
@@ -217,6 +219,77 @@ exports.getItem = (itemKey, tableName) => {
 	    });
 
 	});
+};
+
+/**
+ * Query Database Table For Items
+ *
+ *  You can only query on the indexes of the table, this is the components of the partitions key and any secondary
+ *  indexes that you have defined. There is a cost associated with the provisioning of additional indexes, for this
+ *  reason it is important to take care in the design of your table.
+ *
+ *  The optional parameter indexName is used to specify a table index other than the primary table index that is used by
+ *  defaults
+ *
+ *  If conditions need to be applied to non index fields then the use of the scan operation will be mandated, note that
+ *  the scan operation brings reads all of the data with the filters applied on teh index fields then apples the additional
+ *  filters to all of the data that is brought back. This is an expensive operation and queries should be preferred.
+ *
+ * @param conditionExpression
+ * @param expressionAttributeNames
+ * @param expressionAttributeValues
+ * @param tableName
+ * @param indexName
+ * @returns {Promise<any>}
+ */
+exports.query = (conditionExpression, expressionAttributeNames, expressionAttributeValues, tableName, indexName = "") => {
+    return new Promise((resolve, reject) => {
+
+        let requestParams = {};
+        const errorObj = {"calledWith": {"conditionExpression": conditionExpression, "tableName": tableName, "expressionAttributeNames": expressionAttributeNames, "expressionAttributeValues": expressionAttributeValues}};
+
+        // Validation
+        if (conditionExpression.length <= 0) return reject({msg: "No conditionExpression supplied", ...errorObj});
+        if (tableName.length <= 0) return reject({msg: "No tableName supplied", ...errorObj});
+        if (expressionAttributeNames.length <= 0) return reject({msg: "No expressionAttributeNames supplied", ...errorObj});
+        if (expressionAttributeValues.length <= 0) return reject({msg: "No expressionAttributeValues supplied", ...errorObj});
+
+        // Build the request payload
+        requestParams.TableName = tableName;
+        requestParams.KeyConditionExpression = conditionExpression;
+        requestParams.ExpressionAttributeNames = expressionAttributeNames;
+        requestParams.ExpressionAttributeValues = expressionAttributeValues;
+
+        // Include the index name if supplied
+        if(indexName.length >= 0) requestParams.IndexName = indexName;
+
+        // Call dynamoDB
+        docClient.query(requestParams, function(err, data) {
+            if (err) {
+                // console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
+                reject({msg: "Query failed on dynamoDB", "code": "DBError", DBError: err, ...errorObj});
+            } else {
+                // Query succeeded
+                resolve(data);
+
+            }
+        });
+
+    });
+};
+
+/**
+ * Caution: Scan operations are expensive and should be minimised as they read each item in the table
+ *
+ * @returns {Promise<any>}
+ */
+exports.scan = () => {
+  return new Promise((resolve, reject) => {
+
+      reject({msg: "Not implemented"});
+
+
+  });
 };
 
 /**
