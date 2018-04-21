@@ -10,7 +10,7 @@ npm install the dependencies (aws-cli), IAM permissions will need to be configur
 
 ### Available Functions: 
 
-####putItem
+#### putItem
 
 Create a new item in a table. Note, using the AWS-SDK directly here there is no protection for accidentally overriding a item in the case of a key collision. 
 
