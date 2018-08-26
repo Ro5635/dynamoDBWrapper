@@ -25,14 +25,14 @@ const docClient = new AWS.DynamoDB.DocumentClient({apiVersion: awsAPIVersion});
  * Puts passed item to dynamoDB table
  * @param item
  * @param tableName
- * @param overwite
+ * @param overwrite
  */
-exports.putItem = (item, tableName, overwite = false) => {
+exports.putItem = (item, tableName, overwrite = false) => {
 	return new Promise( (resolve, reject) => {
 
 		let requestParams = {};
 
-		const errorObj = {"calledWith": {"item": item, "TableName": tableName, "overwite": overwite}};
+		const errorObj = {"calledWith": {"item": item, "TableName": tableName, "overwrite": overwrite}};
 
         // Validation
         if (item.length <= 0) return reject({msg: "No item supplied", ...errorObj});
@@ -42,14 +42,14 @@ exports.putItem = (item, tableName, overwite = false) => {
         requestParams.TableName = tableName;
         requestParams.Item = item;
 
-        if (!overwite){
-            requestParams.ConditionExpression = "attribute_not_exists(MachineID)"
+        if (!overwrite){
+            requestParams.ConditionExpression = "attribute_not_exists("!!")";
         }
 
         // Call The DynamoDB API via the SDK
         docClient.put(requestParams, function(err, res){
             if (err) {
-              // Does the item alredy exist in the table
+              // Does the item already exist in the table
               if (err.code === 'ConditionalCheckFailedException') {
                 reject({msg: "Item with that key already exists", "code": "ItemExists", ...errorObj});
 
@@ -72,36 +72,67 @@ exports.putItem = (item, tableName, overwite = false) => {
 /**
  * Update Item
  *
- * TODO: Look at te condition expression here, does it work?
- *
  * Updates item in dynamodb table
- * @param itemKey
- * @param tableName
- * @param updateParams
- * @param conditionExpression
+ *
+ * Docs: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_UpdateItem.html
+ *
+ * @param itemKey               The key (Both Partition and Sort Key if composite key used), Example: {'MachineID': 22}
+ * @param tableName             The DynamoDB table name
+ * @param updateParams          Array of fields to be updated in the following format: [{"fieldName": "MachinePPM","fieldValue": 71}, ...]
+ * @param conditionExpression   Optional conditional expression for the update
  */
-exports.updateItem = (itemKey, tableName, updateParams, conditionExpression = {}) => {
-	return new Promise((resolve, reject) => {
+exports.updateItem = (itemKey, tableName, updateParams, conditionExpression = "") => {
+    return new Promise((resolve, reject) => {
 
-		let requestParams = {};
-		const errorObj = {"calledWith": {"updateParams": updateParams, "tableName": tableName, "itemKey": itemKey, "conditionExpression": conditionExpression}};
+        let requestParams = {};
+        const errorObj = {
+            "calledWith": {
+                "updateParams": updateParams,
+                "tableName": tableName,
+                "itemKey": itemKey,
+                "conditionExpression": conditionExpression
+            }
+        };
+        const requireItemExistsExpression = "attribute_exists(MachineID)";
 
         // Validation
-        if (itemKey.length <= 0) return reject({msg: "no Item Key supplied", ...errorObj});
-        if (updateParams.length <= 0) return reject({msg: "No updateParams supplied", ...errorObj});
-        if (tableName.length <= 0) return reject({msg: "No tableName supplied", ...errorObj});
+        if (!itemKey || itemKey.length <= 0) return reject({msg: "no Item Key supplied", ...errorObj});
+        if (!updateParams || updateParams.length <= 0) return reject({msg: "No updateParams supplied", ...errorObj});
+        if (!tableName || tableName.length <= 0) return reject({msg: "No tableName supplied", ...errorObj});
 
 
-        // Build the update expressions
+        // Build the update expressions, this will build a string of the form: 'set #itemSaleDate = :itemSaleDate'
         let updateExpression = 'set';
         let expressionAttributeValues = {};
 
         for (let paramIndex in updateParams) {
-            if (paramIndex !== 0) updateExpression += ',';
+            if (paramIndex !== "0") updateExpression += ',';
 
-            updateExpression += ` ${updateParams[paramIndex].name} = :${updateParams[paramIndex].name}`;
-            expressionAttributeValues[`:${updateParams[paramIndex].name}`] = updateParams[paramIndex].value;
+            // Ensure that the field name is defined
+            if (typeof updateParams[paramIndex].fieldName === 'undefined' || updateParams[paramIndex].fieldName === null) {
+                // variable is undefined or null
+                console.error("Unable to update Item, passed parameters where undefined.");
+                return reject({
+                    msg: "Update failed on dynamoDB",
+                    "code": "InvalidData",
+                    DBError: "Passed parameters where undefined", ...errorObj
+                });
+            }
 
+            updateExpression += ` ${updateParams[paramIndex].fieldName} = :${updateParams[paramIndex].fieldName}`;
+            expressionAttributeValues[`:${updateParams[paramIndex].fieldName}`] = updateParams[paramIndex].fieldValue;
+
+        }
+
+
+        // Start building the condition expression, this is checked at write time. Add the require item exists expression
+        // this will ensure that an existing item is being updated, without this a new item will be created with only the
+        // fields supplied in the update expression.
+        let conditionExpressionBuilder = requireItemExistsExpression;
+
+        // If a condition expression has been passed include it
+        if (conditionExpression.length > 0) {
+            conditionExpressionBuilder = conditionExpressionBuilder + ', ' + conditionExpression;
         }
 
 
@@ -110,28 +141,33 @@ exports.updateItem = (itemKey, tableName, updateParams, conditionExpression = {}
         requestParams.TableName = tableName;
         requestParams.ExpressionAttributeValues = expressionAttributeValues;
         requestParams.UpdateExpression = updateExpression;
-
-        // If a condition expression is supplied include it
-        if(conditionExpression.length >= 0) {
-            requestParams.ConditionExpression = conditionExpression;
-        }
-
+        requestParams.ConditionExpression = conditionExpressionBuilder;
 
 
         // Call dynamoDB
-        docClient.update(requestParams, function(err, data) {
+        docClient.update(requestParams, function (err, data) {
             if (err) {
-                console.error("Unable to update item. Error JSON:", JSON.stringify(err, null, 2));
+
+                // console.error("Unable to update item. Error JSON:", JSON.stringify(err, null, 2));
+
+                // Handle the Conditional check fail separately
+                if (err.code === 'ConditionalCheckFailedException') {
+                    const errorText = 'Conditional Check Failed, Item possibly does not exist? Failed Condition Expression: ' + requestParams.ConditionExpression;
+                    // console.error(errorText);
+
+                    return reject({msg: errorText, "code": "DBError.ConditionalCheckFailedException", DBError: err, ...errorObj});
+                }
+
                 reject({msg: "Update failed on dynamoDB", "code": "DBError", DBError: err, ...errorObj});
 
             } else {
-            // console.log("UpdateItem succeeded:", JSON.stringify(data, null, 2));
-            resolve(data);
+                // console.log("UpdateItem succeeded:", JSON.stringify(data, null, 2));
+                resolve(data);
 
-        }
+            }
+        });
+
     });
-
-});
 
 };
 
@@ -261,7 +297,7 @@ exports.query = (conditionExpression, expressionAttributeNames, expressionAttrib
         requestParams.ExpressionAttributeValues = expressionAttributeValues;
 
         // Include the index name if supplied
-        if(indexName.length >= 0) requestParams.IndexName = indexName;
+        if(indexName.length > 0) requestParams.IndexName = indexName;
 
         // Call dynamoDB
         docClient.query(requestParams, function(err, data) {
