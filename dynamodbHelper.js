@@ -87,7 +87,7 @@ exports.putItem = (key, item, tableName, overwrite = false) => {
  *
  * @param itemKey               The key (Both Partition and Sort Key if composite key used), Example: {'MachineID': 22}
  * @param tableName             The DynamoDB table name
- * @param updateParams          Array of fields to be updated in the following format: [{"fieldName": "MachinePPM","fieldValue": 71}, ...]
+ * @param updateParams          Fields to be updated in the following format: {"UserName": "Eric", "Age": 33}
  * @param conditionExpression   Optional conditional expression for the update
  */
 exports.updateItem = (itemKey, tableName, updateParams, conditionExpression = "") => {
@@ -114,23 +114,23 @@ exports.updateItem = (itemKey, tableName, updateParams, conditionExpression = ""
         let updateExpression = 'set';
         let expressionAttributeValues = {};
 
-        for (let paramIndex in updateParams) {
-            if (paramIndex !== "0") updateExpression += ',';
+        let completedAtLeastOneLoopFlag = false;
 
-            // Ensure that the field name is defined
-            if (typeof updateParams[paramIndex].fieldName === 'undefined' || updateParams[paramIndex].fieldName === null) {
+        for (let key in updateParams) {
+            if (completedAtLeastOneLoopFlag) updateExpression += ',';
+
+            // Validation
+            if (!updateParams[key]) {
                 // variable is undefined or null
                 console.error("Unable to update Item, passed parameters where undefined.");
-                return reject({
-                    msg: "Update failed on dynamoDB",
-                    "code": "InvalidData",
-                    DBError: "Passed parameters where undefined", ...errorObj
-                });
+                return reject({msg: "Parameter passed for update is invalid", ...errorObj});
             }
 
-            updateExpression += ` ${updateParams[paramIndex].fieldName} = :${updateParams[paramIndex].fieldName}`;
-            expressionAttributeValues[`:${updateParams[paramIndex].fieldName}`] = updateParams[paramIndex].fieldValue;
+            updateExpression += ` ${key} = :${key}`;
+            expressionAttributeValues[`:${key}`] = updateParams[key];
 
+            // Update the flag
+            completedAtLeastOneLoopFlag = true;
         }
 
 
