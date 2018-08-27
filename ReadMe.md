@@ -4,6 +4,9 @@ A small wrapper around the AWS dynamoDB node SDK functions. I needed this for a 
 
 AWS-SDK Docs: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide
 
+I have refined the API for this a few times over the stages of development, the major version has been incremented to reflect this.
+Further changes are still anticipated at this point.
+
 ### Setup:
 
 npm install the dependencies (aws-cli), IAM permissions will need to be configured with AWS for the SDK to authenticate with the DynamoDB rest API. The following functions are available:
