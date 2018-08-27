@@ -1,7 +1,7 @@
 {
-  "name": "dynamodbnodetest",
-  "version": "1.0.0",
-  "description": "",
+  "name": "@ro5635/dynamodbwrapper",
+  "version": "2.0.1",
+  "description": "A small wrapper around the AWS DynamoDB sdk, first push to npm!",
   "main": "dynamodbHelper.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -9,7 +9,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "aws-sdk": "^2.222.1",
-    "nstall": "^0.2.0"
+    "aws-sdk": "^2.270.1",
+    "nstall": "^0.2.0",
+    "ppjson": "^1.4.0"
   }
 }

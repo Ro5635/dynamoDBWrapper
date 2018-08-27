@@ -22,28 +22,37 @@ const docClient = new AWS.DynamoDB.DocumentClient({apiVersion: awsAPIVersion});
 /**
  * put item
  *
- * Puts passed item to dynamoDB table
+ * Puts passed item to dynamoDB table, the key needs to be passed for use in checking for overwriting of an existing item.
+ *
+ * @param key           Key used to uniquely identify on dynamoDB
  * @param item
  * @param tableName
  * @param overwrite
  */
-exports.putItem = (item, tableName, overwrite = false) => {
+exports.putItem = (key, item, tableName, overwrite = false) => {
 	return new Promise( (resolve, reject) => {
 
 		let requestParams = {};
 
-		const errorObj = {"calledWith": {"item": item, "TableName": tableName, "overwrite": overwrite}};
+		const errorObj = {"calledWith": {"key": key,"item": item, "TableName": tableName, "overwrite": overwrite}};
 
         // Validation
-        if (item.length <= 0) return reject({msg: "No item supplied", ...errorObj});
-        if (tableName.length <= 0) return reject({msg: "No tableName supplied", ...errorObj});
+        if (!key || key.length <= 0) return reject({msg: "No key supplied", ...errorObj});
+        if (!item || item.length <= 0) return reject({msg: "No item supplied", ...errorObj});
+        if (!tableName || tableName.length <= 0) return reject({msg: "No tableName supplied", ...errorObj});
 
         // Build request payload
         requestParams.TableName = tableName;
-        requestParams.Item = item;
+        requestParams.Item = {...item, ...key};
 
+        // Gets the name of the key, in composite key it will get either the partition or sort key depending on the
+        // order passed.
+        const keyName = Object.keys(key)[0];
+
+        // If overwrite has not been set to true add a guard conditional expression that requires the key not
+        // exist in the table, this stops dynamoDB silently over writing an existing item.
         if (!overwrite){
-            requestParams.ConditionExpression = "attribute_not_exists("!!")";
+            requestParams.ConditionExpression = "attribute_not_exists(" + keyName + ")";
         }
 
         // Call The DynamoDB API via the SDK
