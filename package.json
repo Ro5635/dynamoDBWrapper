@@ -1,6 +1,6 @@
 {
   "name": "@ro5635/dynamodbwrapper",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "A small wrapper around the AWS DynamoDB sdk, first push to npm!",
   "main": "dynamodbHelper.js",
   "scripts": {
