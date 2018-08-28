@@ -185,34 +185,32 @@ exports.updateItem = (itemKey, tableName, updateParams, conditionExpression = ""
  * Delete Item
  *
  * Deletes an Item from the dynamoDB table
- * @param itemKey
- * @param tableName
- * @param deleteCondition
- * @param deleteParameters
+ *
+ * @param itemKey           The key (Both Partition and Sort Key if composite key used), Example: {'MachineID': 22}
+ * @param tableName         The DynamoDB table name
  * @returns {Promise<any>}
  */
-exports.deleteItem = (itemKey, tableName, deleteCondition, deleteParameters) => {
-	return new Promise((resolve, reject) => {
+exports.deleteItem = (itemKey, tableName) => {
+    return new Promise((resolve, reject) => {
 
-		let requestParams = {};
-		const errorObj = {"calledWith": {"itemKey": itemKey , "tableName": tableName, "deleteCondition": deleteCondition, "deleteParameters": deleteParameters}};
+        let requestParams = {};
+        const errorObj = {
+            "calledWith": {
+                "itemKey": itemKey,
+                "tableName": tableName,
+            }
+        };
 
         // Validation
         if (itemKey.length <= 0) return reject({msg: "no Item Key supplied", ...errorObj});
         if (tableName.length <= 0) return reject({msg: "No tableName supplied", ...errorObj});
-        if (deleteCondition.length <= 0) return reject({msg: "No delete condition supplied", ...errorObj});
-        if (deleteParameters.length <= 0) return reject({msg: "No delete condition supplied", ...errorObj});
-
 
         // Build the request payload
         requestParams.Key = itemKey;
         requestParams.TableName = tableName;
-        requestParams.ConditionExpression = deleteCondition;
-        requestParams.ExpressionAttributeValues = deleteParameters;
-
 
         // Call dynamoDB
-        docClient.delete(requestParams, function(err, data) {
+        docClient.delete(requestParams, function (err, data) {
             if (err) {
                 // console.error("Unable to delete item. Error JSON:", JSON.stringify(err, null, 2));
                 reject({msg: "Delete failed on dynamoDB", "code": "DBError", DBError: err, ...errorObj});
@@ -226,6 +224,7 @@ exports.deleteItem = (itemKey, tableName, deleteCondition, deleteParameters) => 
         });
     });
 };
+
 
 /**
  * get Item
