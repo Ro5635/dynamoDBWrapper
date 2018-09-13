@@ -20,6 +20,18 @@ const docClient = new AWS.DynamoDB.DocumentClient({apiVersion: awsAPIVersion});
 
 
 /**
+ * AWSDocClient
+ *
+ * Expose teh AWS docClient for use allowing the user to use the docclient
+ * entirely uninhibited by this small wrapper module.
+ *
+ *
+ * @type {AWS.DynamoDB.DocumentClient}  AWS DynamoDB Doc Client
+ */
+exports.AWSDocClient = docClient;
+
+
+/**
  * put item
  *
  * Puts passed item to dynamoDB table, the key needs to be passed for use in checking for overwriting of an existing item.
